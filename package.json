@@ -1,0 +1,19 @@
+{
+  "name": "upload_product_feed",
+  "version": "0.0.1",
+  "description": "product feed uploader",
+  "main": "upload_product_feed.js",
+  "dependencies": {
+    "ftp": "~0.3.5",
+    "moment": "~2.4.0",
+    "request": "~2.27.0",
+    "string": "~1.7.0",
+    "commander": "~2.1.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "szeller",
+  "license": "Apache"
+}
