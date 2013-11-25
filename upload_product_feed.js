@@ -9,8 +9,8 @@ var S = require('string');
 var Client = require('ftp');
 
 var googleDocUrl = process.argv[5];
+var merchantId = process.argv[6];
 var originalFile = "original_feed.csv";
-var outputFile = "to_upload.csv";
 
 var ftpHost = process.argv[2]';
 var ftpUser = process.argv[3];
@@ -48,18 +48,19 @@ function sanitizeData(data, callback) {
   callback(result);
 }
 
-function outputFeed(data, dest, callback) {
+function outputFeed(data, callback) {
     var result = S(buildHeaderLine(data)).ensureRight('\n') + S(data).ensureRight('\n') + buildTerminatingLine(data);
+    var filename = uploadFilename();
 
-    fs.writeFile(dest, result, 'utf8', function (err) {
+    fs.writeFile(filename, result, 'utf8', function (err) {
       if (err) return console.log(err);
-      callback(result);
+      callback(filename);
     });
 
 }
 
 function buildHeaderLine(data) {
-  var cols = ['HDR', '12345', 'MerchantName', moment().format('YYYY-MM-DD/HH:mm:ss')];
+  var cols = ['HDR', merchantId, 'MerchantName', moment().format('YYYY-MM-DD/HH:mm:ss')];
   return cols.join('|');
 }
 
@@ -69,10 +70,14 @@ function buildTerminatingLine(data) {
   return cols.join('|');
 }
 
+function uploadFilename() {
+  return merchantId + "_nmerchandis" + moment().format('YYYYMMDD') + ".txt";
+}
+
 function uploadFile(feedFile, callback) {
   var c = new Client();
   
-  console.log("username %s, password %s", ftpUser, ftpPassword);
+  console.log("feedfile %s, username %s, password %s", feedFile, ftpUser, ftpPassword);
 
   c.on('ready', function() {
     c.list(function(err, list) {
@@ -91,7 +96,7 @@ function uploadFile(feedFile, callback) {
 
 downloadFile(googleDocUrl, originalFile, function(googleCSV) {
   sanitizeData(googleCSV, function(sanitized) {
-    outputFeed(sanitized, outputFile, function(feedFile) {
+    outputFeed(sanitized, function(feedFile) {
       uploadFile(feedFile, function() {
         console.log("foobar!!!!!");         
       });
