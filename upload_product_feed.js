@@ -80,10 +80,10 @@ function uploadFile(feedFile, callback) {
   console.log("feedfile %s, username %s, password %s", feedFile, ftpUser, ftpPassword);
 
   c.on('ready', function() {
-    c.list(function(err, list) {
+    c.put(feedFile, feedFile, function(err, list) {
       if (err) return console.log(err);
-      console.dir(list);
       c.end();
+      callback();
     });
   });
 
@@ -98,7 +98,7 @@ downloadFile(googleDocUrl, originalFile, function(googleCSV) {
   sanitizeData(googleCSV, function(sanitized) {
     outputFeed(sanitized, function(feedFile) {
       uploadFile(feedFile, function() {
-        console.log("foobar!!!!!");         
+        console.log("success!!!!!");         
       });
     })
   });
