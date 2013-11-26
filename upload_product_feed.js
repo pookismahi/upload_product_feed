@@ -52,7 +52,7 @@ function sanitizeData(data, callback) {
   // use the last number in the first rows as the column count
   var columnCount = S(lines.shift().replace(/^.*\|/, '')).toInt();
 
-  var result = _.chain(data.split('\n'))
+  var result = _.chain(lines)
   	.map(function(line) { return S(line).trim().split('|'); })  // make sure that we're removing any possible whitespace left
   	.reject(function(line) { return line.length < columnCount }) // make sure that all the rows have a consistent number of columns
   	.filter(function(line) { return S(line[0]).isNumeric() }) // make sure that the product id is numeric
