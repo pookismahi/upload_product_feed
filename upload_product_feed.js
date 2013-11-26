@@ -1,12 +1,10 @@
 #!/usr/local/bin/node
 
-// npm install request moment string ftp
 var fs = require('fs');
-var util = require('util');
 var request = require('request');
 var moment = require('moment');
 var S = require('string');
-var Client = require('ftp');
+var _ = require('underscore')._;
 
 var googleDocUrl = process.argv[5];
 var merchantId = process.argv[6];
@@ -35,15 +33,34 @@ downloadFile = function(url, destination, callback) {
   });
 }
 
+// in our files, the UPC is either a number or is empty if there isn't an explicit UPC
+function isUPC(upc) {
+  var upc = S(upc);
+  return upc.isNumeric() || upc.isEmpty();
+}
+
 function sanitizeData(data, callback) {
-  var result = data
-    .replace(/.*\n/, '')           // strip off the first line of the file
+  var data = data
     .replace(/\\,/g, '###')        // replace any escaped commas with ###
     .replace(/,/g, '|')            // replace any commas that are left with |
     .replace(/###/g, ',')          // convert the escaped commas back to comma
     .replace(/"/g, '')             // remove any double quotes
     .replace(/[ ]*\|[ ]*/g, '|')   // remove any spaces around pipe characters
     .replace(/\n\s*\n*/g, '\n');
+
+  var lines = data.split('\n');
+  // use the last number in the first rows as the column count
+  var columnCount = S(lines.shift().replace(/^.*\|/, '')).toInt();
+
+  var result = _.chain(data.split('\n'))
+  	.map(function(line) { return S(line).trim().split('|'); })  // make sure that we're removing any possible whitespace left
+  	.reject(function(line) { return line.length < columnCount }) // make sure that all the rows have a consistent number of columns
+  	.filter(function(line) { return S(line[0]).isNumeric() }) // make sure that the product id is numeric
+  	.filter(function(line) { return line[2].search(/^[A-Za-z0-9\-\.]*$/) >= 0 }) // make sure that the sku number is as valid as we can determine
+  	.filter(function(line) { return isUPC(line[25]); }) // check for a valid UPC
+  	.map(function(line) { return line.join('|')}) // make each line pip delimited again
+  	.value()
+  	.join('\n'); 
 
   callback(result);
 }
@@ -65,7 +82,7 @@ function buildHeaderLine(data) {
 }
 
 function buildTerminatingLine(data) {
-  var numLines = S(data).count('\n') - 1;
+  var numLines = S(data).count('\n');
   var cols = ['TRL', numLines];
   return cols.join('|');
 }
@@ -74,11 +91,12 @@ function uploadFilename() {
   return merchantId + "_nmerchandis" + moment().format('YYYYMMDD') + ".txt";
 }
 
-function uploadFile(feedFile, callback) {
-  var c = new Client();
-  
+function uploadFile(feedFile, callback) {	
   console.log("feedfile %s, username %s, password %s", feedFile, ftpUser, ftpPassword);
 
+  var ftp = require('ftp');
+  var c = new ftp();
+  
   c.on('ready', function() {
     c.put(feedFile, feedFile, function(err, list) {
       if (err) return console.log(err);
@@ -93,6 +111,8 @@ function uploadFile(feedFile, callback) {
     password: ftpPassword
   });
 }
+
+// TODO: change this to use async.series
 
 downloadFile(googleDocUrl, originalFile, function(googleCSV) {
   sanitizeData(googleCSV, function(sanitized) {
