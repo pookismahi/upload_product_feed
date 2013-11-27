@@ -1,8 +1,8 @@
 {
   "name": "upload_product_feed",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "product feed uploader",
-  "main": "upload_product_feed.js",
+  "main": "./lib/upload_product_feed.js",
   "dependencies": {
     "ftp": "~0.3.5",
     "moment": "~2.4.0",
@@ -14,6 +14,9 @@
     "optimist": "~0.6.0"
   },
   "devDependencies": {},
+  "bin": {
+    "upload_product_feed": "./bin/upload_product_feed"
+  }
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
