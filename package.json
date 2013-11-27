@@ -1,6 +1,6 @@
 {
   "name": "upload_product_feed",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "product feed uploader",
   "main": "./lib/upload_product_feed.js",
   "dependencies": {
