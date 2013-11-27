@@ -13,10 +13,11 @@
     "nodemailer": "~0.5.9",
     "optimist": "~0.6.0"
   },
+  "private": true,
   "devDependencies": {},
   "bin": {
     "upload_product_feed": "./bin/upload_product_feed"
-  }
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
