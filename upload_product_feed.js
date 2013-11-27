@@ -5,14 +5,12 @@ var request = require('request');
 var moment = require('moment');
 var S = require('string');
 var _ = require('underscore')._;
+var nodemailer = require("nodemailer");
 
-var googleDocUrl = process.argv[5];
-var merchantId = process.argv[6];
-var originalFile = "original_feed.csv";
-
-var ftpHost = process.argv[2]';
-var ftpUser = process.argv[3];
-var ftpPassword = process.argv[4];
+var argv = require('optimist')
+  .default('src', "original_feed.csv")
+  .default('eservice', "Postmark")
+  .demand(['fhost', 'fuser', 'fpass', 'euser', 'epass', 'mid', 'mname', 'gdoc', 'toemail', 'fromemail']).argv;
 
 function downloadFile(url, destination, callback) {
   request(url, function(err, response, body) {
@@ -77,7 +75,7 @@ function outputFeed(data, callback) {
 }
 
 function buildHeaderLine(data) {
-  var cols = ['HDR', merchantId, 'MerchantName', moment().format('YYYY-MM-DD/HH:mm:ss')];
+  var cols = ['HDR', argv.mid, argv.mname, moment().format('YYYY-MM-DD/HH:mm:ss')];
   return cols.join('|');
 }
 
@@ -88,11 +86,11 @@ function buildTerminatingLine(data) {
 }
 
 function uploadFilename() {
-  return merchantId + "_nmerchandis" + moment().format('YYYYMMDD') + ".txt";
+  return argv.mid + "_nmerchandis" + moment().format('YYYYMMDD') + ".txt";
 }
 
 function uploadFile(feedFile, callback) {	
-  console.log("feedfile %s, username %s, password %s", feedFile, ftpUser, ftpPassword);
+  console.log("feedfile %s, username %s, password %s", feedFile, argv.fuser, argv.fpass);
 
   var ftp = require('ftp');
   var c = new ftp();
@@ -106,15 +104,53 @@ function uploadFile(feedFile, callback) {
   });
 
   c.connect({
-    host: ftpHost,
-    user: ftpUser,
-    password: ftpPassword
+    host: argv.fhost,
+    user: argv.fuser,
+    password: argv.fpass
   });
+}
+
+function errorEmail(body) {
+  sendEmail({
+    subject: "Error processing latest product feed", 
+    text: body
+  }, callback);
+}
+
+function successEmail(resultFile, callback) {
+  sendEmail({
+    subject: "Completed upload of latest product feed", 
+    attachments: [ { filePath: resultFile } ]    
+  }, callback);
+}
+
+function sendEmail(mailOptions, callback) {
+  var emailer = nodemailer.createTransport("SMTP", {
+    service: argv.eservice,
+    auth: {
+      user: argv.euser,
+      pass: argv.epass
+    }
+  });
+
+  _.defaults(mailOptions, {
+    from: "Product Feed <" + argv.fromemail + ">", 
+    to: argv.toemail,
+  });
+
+  emailer.sendMail(mailOptions, function(error, responseStatus){
+    emailer.close();
+
+    if (error)
+      return console.log(error);
+
+    callback();
+  });  
 }
 
 // TODO: change this to use async.series
 
-downloadFile(googleDocUrl, originalFile, function(googleCSV) {
+downloadFile(argv.gdoc, argv.src, function(googleCSV) {
   sanitizeData(googleCSV, function(sanitized) {
     outputFeed(sanitized, function(feedFile) {
       uploadFile(feedFile, function() {
