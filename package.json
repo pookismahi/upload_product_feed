@@ -1,6 +1,6 @@
 {
   "name": "upload_product_feed",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "product feed uploader",
   "main": "./lib/upload_product_feed.js",
   "dependencies": {
@@ -8,10 +8,10 @@
     "moment": "~2.4.0",
     "request": "~2.27.0",
     "string": "~1.7.0",
-    "commander": "~2.1.0",
     "underscore": "~1.5.2",
     "nodemailer": "~0.5.9",
-    "optimist": "~0.6.0"
+    "optimist": "~0.6.0",
+    "async": "~0.2.9"
   },
   "private": true,
   "devDependencies": {},
