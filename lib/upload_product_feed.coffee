@@ -134,6 +134,6 @@ exports.upload = ->
       errorEmail err, results
       console.log err
     else
-      console.log "File uploaded and email sent"
+      console.log "File uploaded and email sent ... in coffee!"
 
 

@@ -12,7 +12,8 @@
     "nodemailer": "~0.5.9",
     "optimist": "~0.6.0",
     "async": "~0.2.9",
-    "csv": "~0.3.6"
+    "csv": "~0.3.6",
+    "coffee-script": "~1.6.3"
   },
   "private": true,
   "devDependencies": {},
