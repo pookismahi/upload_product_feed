@@ -1,3 +1,4 @@
 node_modules
 *.csv
-*_nmerchandis*.txt
+*.txt
+*.json
