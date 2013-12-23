@@ -13,7 +13,8 @@
     "optimist": "~0.6.0",
     "async": "~0.2.9",
     "csv": "~0.3.6",
-    "coffee-script": "~1.6.3"
+    "coffee-script": "~1.6.3",
+    "nconf": "~0.6.9"
   },
   "private": true,
   "devDependencies": {},

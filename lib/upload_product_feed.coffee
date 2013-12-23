@@ -5,16 +5,22 @@ S = require('string')
 _ = require('underscore')._
 async = require('async')
 csv = require('csv')
+nconf = require('nconf')
 
-argv = require('optimist')
-  .default('src', 'original_feed.csv')
-  .default('eservice', 'Postmark')
-  .demand(['fhost', 'fuser', 'fpass', 'euser', 'epass', 'mid', 'mname', 'gdoc', 'toemail', 'fromemail'])
-  .argv
+configDefaults = 
+  src: 'original_feed.csv'
+  email: 
+    service: 'Postmark'
+
+
+exports.setup = () ->
+  nconf.defaults configDefaults
+  nconf.argv().env()
+  nconf.file nconf.get('config') if nconf.get('config')
 
 downloadFile = (callback) ->
-  url = argv.gdoc
-  destination = argv.src
+  url = nconf.get 'gdoc' 
+  destination = nconf.get 'src'
 
   request 
     url: url
@@ -23,7 +29,7 @@ downloadFile = (callback) ->
   , (err, response, body) ->
     if not err and response.statusCode is 200
       fs.writeFile destination, body, ->
-        return callback(null, body)  if body.charAt(0) is '1'
+        return callback(null, body) if body.charAt(0) is '1'
         callback "First line of google docs file was not the number 1", destination
 
     else
@@ -61,26 +67,28 @@ sanitizeData = (data, callback) ->
 
 
 outputFeed = (data, callback) ->
-  lineSets = [buildHeaderLines(data), data, buildTerminatingLines(data)]
   filename = uploadFilename()
 
   csv()
-    .from.array(_.flatten(lineSets, true))
+    .from.array([buildHeaderLine(data), data..., buildTerminatingLine(data)])
     .to(filename, delimiter: "|")
     .on("end", -> callback null, filename)
     .on("error", (err) -> callback err, filename)
 
-buildHeaderLines = (data) ->
-  [["HDR", argv.mid, argv.mname, moment().format("YYYY-MM-DD/HH:mm:ss")]]
+buildHeaderLine = (data) ->
+  ["HDR", nconf.get('merchant:id'), nconf.get('merchant:name'), moment().format("YYYY-MM-DD/HH:mm:ss")]
 
-buildTerminatingLines = (data) ->
-  [["TRL", data.length]]
+buildTerminatingLine = (data) ->
+  ["TRL", data.length]
   
 uploadFilename = ->
-  "#{argv.mid}_nmerchandis#{moment().format('YYYYMMDD')}.txt"
+  "#{nconf.get('merchant:id')}_nmerchandis#{moment().format('YYYYMMDD')}.txt"
 
 uploadFile = (feedFile, callback) ->
-  ftp = require("ftp")
+  config = nconf.get 'ftp'
+  return callback null, feedFile if config.disabled
+
+  ftp = require 'ftp'
   c = new ftp()
   ftpCompleted = false
   c.on "ready", ->
@@ -91,10 +99,7 @@ uploadFile = (feedFile, callback) ->
   c.on "close", ->
     callback (if ftpCompleted then null else "Could not successfully ftp file"), feedFile
 
-  c.connect
-    host: argv.fhost
-    user: argv.fuser
-    password: argv.fpass
+  c.connect config
 
 errorEmail = (msg, resultFile) ->
   console.log "ERROR: #{msg}"
@@ -106,29 +111,35 @@ errorEmail = (msg, resultFile) ->
     console.log "Error email sent successfully." unless err
 
 successEmail = (resultFile, callback) ->
-  console.log "Sending success email to #{argv.toemail}"
+  console.log "Sending success email to #{nconf.get('email:to')}"
   sendEmail
     subject: "Completed upload of latest product feed"
     attachments: [filePath: resultFile]
   , callback
 
 sendEmail = (mailOptions, callback) ->
-  emailer = require("nodemailer").createTransport("SMTP",
-    service: argv.eservice
+  config = nconf.get 'email'
+  return callback null if config.disabled
+
+  console.log('sending email')
+
+  emailer = require("nodemailer").createTransport "SMTP",
+    service: config.service
     auth:
-      user: argv.euser
-      pass: argv.epass
-  )
+      user: config.user
+      pass: config.password
   
   _.defaults mailOptions,
-    from: "Product Feed <#{argv.fromemail}>"
-    to: argv.toemail
+    from: "Product Feed <#{config.from}>"
+    to: config.to
 
   emailer.sendMail mailOptions, (err, responseStatus) ->
     emailer.close
     callback err
 
 exports.upload = ->
+  exports.setup()
+
   async.waterfall [downloadFile, sanitizeData, outputFeed, uploadFile, successEmail], (err, results) ->
     if err
       errorEmail err, results
