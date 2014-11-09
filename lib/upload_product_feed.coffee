@@ -1,19 +1,20 @@
-fs = require('fs')
-request = require('request')
-moment = require('moment')
-S = require('string')
+fs = require 'fs' 
+request = require 'request'
+moment = require 'moment'
+S = require 'string' 
 _ = require('underscore')._
-async = require('async')
-csv = require('csv')
-nconf = require('nconf')
+async = require 'async' 
+csv = require 'csv'
+nconf = require 'nconf'
+ftp = require 'ftp'
+nodemailer = require 'nodemailer'
 
 configDefaults = 
   src: 'original_feed.csv'
   email: 
     service: 'Postmark'
 
-
-exports.setup = () ->
+setup = () ->
   nconf.defaults configDefaults
   nconf.argv().env()
   nconf.file nconf.get('config') if nconf.get('config')
@@ -88,7 +89,6 @@ uploadFile = (feedFile, callback) ->
   config = nconf.get 'ftp'
   return callback null, feedFile if config.disabled
 
-  ftp = require 'ftp'
   c = new ftp()
   ftpCompleted = false
   c.on "ready", ->
@@ -105,7 +105,7 @@ errorEmail = (msg, resultFile) ->
   console.log "ERROR: #{msg}"
   sendEmail
     subject: "Error processing latest product feed"
-    attachments: [filePath: resultFile]
+    attachments: [path: resultFile]
     text: msg
   , (err) ->
     console.log "Error email sent successfully." unless err
@@ -114,16 +114,15 @@ successEmail = (resultFile, callback) ->
   console.log "Sending success email to #{nconf.get('email:to')}"
   sendEmail
     subject: "Completed upload of latest product feed"
-    attachments: [filePath: resultFile]
+    attachments: [path: resultFile]
+    text: "Uploaded file attached"
   , callback
 
 sendEmail = (mailOptions, callback) ->
   config = nconf.get 'email'
   return callback null if config.disabled
 
-  console.log('sending email')
-
-  emailer = require("nodemailer").createTransport "SMTP",
+  emailer = nodemailer.createTransport
     service: config.service
     auth:
       user: config.user
@@ -135,10 +134,11 @@ sendEmail = (mailOptions, callback) ->
 
   emailer.sendMail mailOptions, (err, responseStatus) ->
     emailer.close
+    console.log "Email sent successfully" unless err
     callback err
 
 exports.upload = ->
-  exports.setup()
+  setup()
 
   async.waterfall [downloadFile, sanitizeData, outputFeed, uploadFile, successEmail], (err, results) ->
     if err
