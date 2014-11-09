@@ -1,4 +1,5 @@
 fs = require 'fs' 
+path = require 'path'
 request = require 'request'
 moment = require 'moment'
 S = require 'string' 
@@ -10,18 +11,21 @@ ftp = require 'ftp'
 nodemailer = require 'nodemailer'
 
 configDefaults = 
-  src: 'original_feed.csv'
+  productFeed:
+    outputFolder: '.'
+    src: 'original_feed.csv'
   email: 
     service: 'Postmark'
 
 setup = () ->
-  nconf.defaults configDefaults
   nconf.argv().env()
   nconf.file nconf.get('config') if nconf.get('config')
+  nconf.defaults configDefaults
 
 downloadFile = (callback) ->
-  url = nconf.get 'gdoc' 
-  destination = nconf.get 'src'
+  feedConfig = nconf.get 'productFeed'
+  url = feedConfig.gdoc
+  destination = path.join feedConfig.outputFolder, feedConfig.src
 
   request 
     url: url
@@ -62,7 +66,8 @@ sanitizeData = (data, callback) ->
 
 
 outputFeed = (data, callback) ->
-  filename = uploadFilename()
+  feedConfig = nconf.get 'productFeed'
+  filename = path.join feedConfig.outputFolder, uploadFilename()
 
   csv.stringify [buildHeaderLine(data), data..., buildTerminatingLine(data)],
     delimiter: "|"
@@ -88,7 +93,7 @@ uploadFile = (feedFile, callback) ->
   c = new ftp()
   ftpCompleted = false
   c.on "ready", ->
-    c.put feedFile, feedFile, (err, list) ->
+    c.put feedFile, path.basename(feedFile), (err, list) ->
       ftpCompleted = true unless err
       c.end()
 
