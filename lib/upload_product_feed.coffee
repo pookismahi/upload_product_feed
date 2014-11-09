@@ -36,45 +36,41 @@ downloadFile = (callback) ->
     else
       callback "Unable to download google doc with url - #{url}"
 
-readCachedFile = (url, destination, callback) ->
-  fs.readFile destination, "utf8", callback
-
 isUPC = (upc) ->
   upc = S(upc)
   upc.isNumeric() or upc.isEmpty()
 
 sanitizeData = (data, callback) ->
-  csv()
-    .from.string(data)
-    .transform (row) ->
-      # there is some old data for a version that had , as \,
-      _.map(row, (col) -> col.replace(/\\,/g, ",").trim())
-    .to.array (lines) ->
-      # use the last number in the first rows as the column count
-      columnCount = S(_.last(lines.shift())).toInt()
+  csv.parse data, (err, lines) ->
+    # use the last number in the first rows as the column count
+    columnCount = S(_.last(lines.shift())).toInt()
 
-      result = _.chain(lines)
-        # make sure that all the rows have a consistent number of columns
-        .reject((line) -> line.length < columnCount)
-        # make sure that the product id is numeric
-        .filter((line) -> S(line[0]).isNumeric())
-        # make sure that the sku number is as valid as we can determine
-        .filter((line) -> line[2].search(/^[A-Za-z0-9\-\.]*$/) >= 0)
-        # check for a valid UPC
-        .filter((line) -> isUPC line[25])
-        .value()
+    result = _.chain(lines)
+      # make sure that all the rows have a consistent number of columns
+      .reject (line) -> line.length < columnCount
+      # make sure that the product id is numeric
+      .filter (line) -> S(line[0]).isNumeric()
+      # make sure that the sku number is as valid as we can determine
+      .filter (line) -> line[2].search(/^[A-Za-z0-9\-\.]*$/) >= 0
+      # check for a valid UPC
+      .filter (line) -> isUPC line[25]
+      .map (line) -> 
+        _.map line, (col) -> col.replace(/\\,/g, ",").trim()
+      .value()
 
-      callback(null, result)
+    callback(null, result)
 
 
 outputFeed = (data, callback) ->
   filename = uploadFilename()
 
-  csv()
-    .from.array([buildHeaderLine(data), data..., buildTerminatingLine(data)])
-    .to(filename, delimiter: "|")
-    .on("end", -> callback null, filename)
-    .on("error", (err) -> callback err, filename)
+  csv.stringify [buildHeaderLine(data), data..., buildTerminatingLine(data)],
+    delimiter: "|"
+  , (err, data) ->
+    callback err, filename if err
+
+    fs.writeFile filename, data, (err) ->
+      callback err, filename
 
 buildHeaderLine = (data) ->
   ["HDR", nconf.get('merchant:id'), nconf.get('merchant:name'), moment().format("YYYY-MM-DD/HH:mm:ss")]
@@ -129,7 +125,7 @@ sendEmail = (mailOptions, callback) ->
       pass: config.password
   
   _.defaults mailOptions,
-    from: "Product Feed <#{config.from}>"
+    from: config.from
     to: config.to
 
   emailer.sendMail mailOptions, (err, responseStatus) ->
